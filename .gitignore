@@ -8,7 +8,7 @@ armdebug/
 *.o
 *.so
 *.a
-launchpad
+/launchpad
 
 # Editor and OS files
 *~
