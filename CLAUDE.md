@@ -96,3 +96,36 @@ The Makefile uses target names for specific build configurations. Note that GNU 
 - **Target Architecture**: ARMv6 (Freescale i.MX31 / i.MX35), Linux 2.6.x kernel.
 - **Toolchain**: `arm-linux-gnueabi-gcc` with `-msoft-float` and `-lpthread`.
 - **Target Installation Path**: `/mnt/us/launchpad/` on device (USB user storage root).
+
+## Coding Standards & Development Rules
+
+All code changes and additions must strictly adhere to the project standards documented in `docs/README.md` and `docs/sot/coding-standards.md`:
+
+### 1. Test-Driven Development (TDD) & `/tdd`
+- Follow Red-Green-Refactor: write failing unit/integration tests before writing implementation code.
+- Invoke the `/tdd` skill when developing features or fixing bugs.
+- Decouple pure logic (parsing, mapping, state transitions) from low-level Linux hardware I/O (`/dev/input/*`, `/dev/fb0`) for fast host-based test execution.
+
+### 2. SOLID Principles in Modular C
+- **Single Responsibility (SRP)**: Each function and `.c` module must do one thing with one reason to change.
+- **Open/Closed (OCP)**: Extend functionality through lookup tables, configuration, and function pointers rather than editing monolithic switch/if-else ladders.
+- **Liskov Substitution (LSP)**: Interchangeable display/input drivers and abstractions must preserve behavioral contracts.
+- **Interface Segregation (ISP)**: Header files (`.h`) must declare only what callers require. Internal helpers remain `static`.
+- **Dependency Inversion (DIP)**: Depend on abstractions rather than hardcoded hardware devices. Inject file descriptors and device paths.
+
+### 3. Object Calisthenics (Systems C)
+1. **One indent level per function**: Extract nested logic into named helper functions.
+2. **No `else`**: Use guard clauses, early returns, or lookup structures.
+3. **Wrap domain primitives**: Wrap raw scalars in dedicated typedef structs.
+4. **First-class collections**: Encapsulate lists and tables in dedicated structs with focused accessor functions.
+5. **One dot/arrow per line**: Avoid deep pointer dereferencing chains (`a->b->c`).
+6. **No abbreviations**: Use clear, descriptive names (avoid `buf`, `tmp`, `fn`, `pact`).
+7. **Keep entities small**: Functions ≤ 15 lines, structs ≤ 100 lines, modules < 200 lines.
+8. **≤ 2 instance variables per entity**: Decompose structs into focused sub-structures.
+9. **Tell, don't ask**: Expose behaviors through functions rather than leaking struct internals.
+
+### 4. Fail-Fast & Defensive Programming
+- Validate inputs, buffers, and state at boundaries immediately.
+- Never swallow errors silently; check all system call return values (`read`, `write`, `ioctl`, `system`).
+- Ensure all resources (descriptors, locks, grabbed devices) are cleaned up in error paths.
+
