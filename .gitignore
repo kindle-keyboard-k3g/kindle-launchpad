@@ -21,3 +21,4 @@ launchpad
 .env
 /tmp/
 
+.worktrees/
