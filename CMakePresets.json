@@ -1,0 +1,62 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "host-debug",
+      "displayName": "Host Debug",
+      "description": "Native desktop build with debug symbols",
+      "binaryDir": "${sourceDir}/build/host-debug",
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "host-release",
+      "displayName": "Host Release",
+      "description": "Native desktop build with optimizations",
+      "binaryDir": "${sourceDir}/build/host-release",
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "kindle-k3-release",
+      "displayName": "Kindle K3 / DX Release (ARMv6)",
+      "description": "Cross-compilation for Kindle Keyboard and DX using ARMv6 toolchain",
+      "binaryDir": "${sourceDir}/build/kindle-k3-release",
+      "generator": "Unix Makefiles",
+      "toolchainFile": "${sourceDir}/cmake/Toolchain-Kindle-ARMv6.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "host-debug",
+      "configurePreset": "host-debug"
+    },
+    {
+      "name": "host-release",
+      "configurePreset": "host-release"
+    },
+    {
+      "name": "kindle-k3-release",
+      "configurePreset": "kindle-k3-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "host-test",
+      "configurePreset": "host-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

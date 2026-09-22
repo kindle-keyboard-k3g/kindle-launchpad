@@ -22,3 +22,4 @@ launchpad
 /tmp/
 
 .worktrees/
+build/
