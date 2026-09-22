@@ -58,3 +58,7 @@ if(BUILD_TESTING)
 
     add_test(NAME unit_tests COMMAND unit_tests)
 endif()
+
+# Packaging
+include(cmake/KindlePackaging.cmake)
+
