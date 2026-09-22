@@ -1,0 +1,26 @@
+#!/bin/sh
+
+_FUNCTIONS=/etc/rc.d/functions
+[ -f ${_FUNCTIONS} ] && . ${_FUNCTIONS}
+
+case "$1" in
+
+        start)
+            /mnt/us/launchpad/launchpad 2>/dev/null
+        ;;
+
+        stop)
+	    kill `pidof launchpad`
+        ;;
+        
+        restart)
+	    kill -HUP `pidof launchpad`
+        ;;
+        
+        *)
+                msg "Usage: $0 {start|stop}" W >&2
+                exit 1
+                ;;
+esac
+
+exit 0

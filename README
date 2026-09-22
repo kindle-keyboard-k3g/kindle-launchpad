@@ -1,0 +1,164 @@
+launchpad for Kindle is a small program supporting extended input 
+capabilities. The main purpose of it is providing the ability to run 
+any 3rd-party programs from within the original unmodified Kindle 
+Framework software. It can be also used to organize custom keyboard 
+shortcut operations and to simplify input of special symbols. 
+Also it fully supports the hotkey script files used by the popular 
+hotkeys package for Kindle.
+
+This program was originally written for Kindle DX Graphite and later 
+extended in order to support Kindle3* operation. It has been successfully 
+tested on Kindle DX Graphite and Kindle3 WiFi and hopefully will also 
+work on older Kindle models.
+
+Runtime parameters are fully controlled by a set of configuration files 
+of .ini type which are interpreted at program startup. Any number of 
+configuration files is allowed, three of them have predefined contents 
+and exist by default: launchpad.ini, fbreader.ini and servicecmds.ini .
+
+The .ini files consist of text lines in a form <KEY> = <VALUE> , these 
+lines are grouped into logical sections by the specially formatted lines 
+indicating start of section. Similar format is widely used in .ini files 
+on Windows platform.
+
+Currently only two section names are recognized in the launchpad 
+configuration files:
+
+  [Settings] section describes various runtime parameters, 
+  [Actions] section contains definitions of hotkey sequences
+
+It is recommended (but not required) to keep the whole [Setting] section 
+in a single file called launchpad.ini . As opposite to that, it is 
+recommended to keep logical groups of hotkey action definitions in separate 
+custom configuration files under [Actions] section.
+These definitions, combined at startup, will constitute the supported hotkey 
+sequence repertoire.
+
+Note: configuration files are processed in chronological order, as their 
+names are physically stored in a directory. All duplicate hot sequence 
+definitions, are ignored, if found.
+
+When running, the Program just transparently scans keypad and fiveway 
+keystrokes until the user presses and releases the hot sequence Introducer 
+key. This causes the launchpad to enter the hotkey mode: it captures all 
+system input, engages the interval timer to trigger after specified HotInterval 
+milliseconds and starts collecting further keystrokes in internal hotkey 
+sequence buffer. 
+
+When the hotkey interval timer triggers or the Trailer key is pressed, 
+the system input capture gets released, and an attempt to execute collected 
+hotkey action is made. Available hotkey sequence actions are defined by 
+the configuration files as described above. 
+
+[Actions] section of the configuration file contains hotkey sequence 
+definitions in a form
+
+    <key_sequence> = <action_command>  ,
+
+one single action definition per text line. 
+
+	<key_sequence> is a blank separated list of key symbolic names. 
+		See keydefs.ini.default file for details.
+	<action_command> describes the action to execute on a particular 
+		hotkey sequence.
+
+Currently three type of action supported depending on the first character 
+of the <action_command> string:
+
+  '!' -- shell command. The <action_command> string excluding the leading 
+	'!' is sent to the system shell, exactly as it was typed from 
+	the console.  
+  '@' -- Kindle Framework script. The <action_command> string excluding 
+	the leading '@' is interpreted as a name of a special script 
+	containing command information obeying format of the known hotkeys 
+	package. The main purpose of these scripts is to simplify input of 
+	special symbols into kindle Framework search box
+  '#' -- Kindle Framework key sequence. Similar to the above, but doesn't 
+	require external script.
+
+   all other command strings are interpreted as a sequence of a send_key 
+   commands. The contents of these commands gets interpreted and sent as 
+   a sequence of simulated keystrokes to the input subsystem. Such commands 
+   consist of the space-separated tokens, which can be symbolic key names 
+   and/or ascii strings enclosed in quotes (")
+
+   Note: to correctly accept  kindle key sequence starting with a special
+         symbol, the Framework search box should be brought up, if not 
+         already. Press the 'Del' key on Kindle in order to bring the 
+         search box up
+
+Input key code definitions are hardcoded and cover the input capabilities of 
+Kindle DX Graphite and Kindle3 models.
+There is a way to redefine these definitions at a startup by providing custom 
+keydefs.ini configuration file. See keydefs.ini.default example for details.
+
+Fresh launchpad installation contains some useful hotkey sequences defined
+by default. These definitions are listed below. 
+Note: the leading Shift introducer key is shown for convienience, it is not 
+a part of the hot section definitions found in .ini files:
+
+FBReader group (fbreader.ini):
+
+  Shift F B 	-- run FBReader
+  Shift F R	-- run the fbKindle port of FBReader.
+
+Service commands group (servicecmds.ini):
+
+  Shift Shift Space -- reread hotkey sequence database
+	used in order to reinitialize hotkey sequence database without 
+	restart. Launchpad home directory is re-scanned and all .ini files
+	found are re-interpreted. launchpad.log file containing minimal 
+	diagnostics along with the list of actual hotkey sequence definitions 
+	is created
+
+  Shift Shift I -- install custom updates
+	can be used as an alternative for the 'hack installation' technique.
+	This hotkey sequence runs the(provided) customupdate.sh shell script
+	which, in turns, scans the customupdates directory and, if
+	found, unpacks all .zip , .tar.gz and .tgz archives to kindle user root
+	[/mnt/us/] directory. Then all customupdates/*.sh shell scripts are executed.
+	Archives and scripts within a group are processed in alphabetical order. 
+	Successfully processed archives and/or installation scripts are deleted
+	from customupdates directory. Processing failure, if happens, stops 
+	execution of this action.
+
+  Shift Shift S -- Sleep/show screensaver
+	Note: the complementary Wakeup hotkey sequence cannot be implemented,
+	because the keyboard gets blocked in a sleep mode.
+
+  Shift Shift A -- restart Amazon Kindle framework
+
+  Shift Shift C -- kick/continue mistakenly stopped Amazon Kindle framework
+	this is related to fbKindle operation. Hopefully will not be needed
+	in a nearest future
+
+  Shift Shift R -- Reboot
+
+  Shift Shift H -- Shutdown
+
+(starting from version 0.0.1b):
+  Shift Shift Shift  -- takes a screenshot and saves it as screenshot.bmp
+                        in the root user folder 
+
+-------------------
+/*
+* Copyright (C) 2010 Andy M. aka h1uke	h1ukeguy @ gmail.com
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*/
+-------------------
+
+ 
+ 

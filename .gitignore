@@ -1,0 +1,19 @@
+# Build directories
+bin/
+binarm/
+bindebug/
+armdebug/
+
+# Object files and binaries
+*.o
+*.so
+*.a
+launchpad
+
+# Editor and OS files
+*~
+*.swp
+*.swo
+.DS_Store
+*.orig
+*.rej
