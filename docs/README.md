@@ -1,73 +1,78 @@
-# Kindle Launchpad Documentation
+# Kindle Launchpad Documentation Portal
 
-Welcome to the internal engineering and architectural documentation for **Kindle Launchpad**.
+Welcome to the central documentation portal for **Kindle Launchpad**, a lightweight daemon and hotkey launcher for Amazon Kindle e-ink devices featuring physical keyboards.
 
 ---
 
-## Documentation Structure
+## 🧭 Documentation Map & Reading Paths
 
 ```
 docs/
-├── README.md               # This document (Documentation entry point)
-├── sot/                    # Source of Truth specifications
-│   └── coding-standards.md # Engineering rules: TDD, SOLID, Object Calisthenics
-└── adr/                    # Architecture Decision Records
+├── README.md                           # Master Documentation Portal (this file)
+├── getting-started.md                  # Quickstart guide: build, run, and configure
+│
+├── architecture/                       # Subsystem Architecture & Design
+│   ├── overview.md                     # High-level architecture, composition root, data flow
+│   ├── core.md                         # Monadic Result<T, E>, RAII types, units, logger
+│   ├── configuration.md                # Multi-file INI scanning, precedence, SIGHUP reload
+│   ├── domain.md                       # Hotkey FSM, sequence matching, action dispatch
+│   ├── hal.md                          # Hardware Abstraction Layer, evdev, EVIOCGRAB, display
+│   ├── ui.md                           # 12x22 font rasterizer, status bar overlay, BMP exporter
+│   └── system.md                       # Daemon lifecycle, signals, PID lock, RCE server
+│
+├── hardware/                           # Device Hardware Profiles & Kernel Drivers
+│   ├── kindle-k3.md                    # Kindle Keyboard 3 (K3G, K3W, K3GB) specifications
+│   ├── kindle-dx.md                    # Kindle DX & DX Graphite specifications
+│   ├── kindle-k2.md                    # Kindle 2 & K2 International specifications
+│   ├── eink-framebuffer.md             # 4bpp packed pixel format, mmap, and refresh mechanics
+│   └── kindle-ioctls.md                # EVIOCGRAB and FBIO_EINK_UPDATE_DISPLAY_AREA ioctls
+│
+├── reference/                          # Technical Reference Manuals
+│   ├── configuration-spec.md           # Authoritative [Settings] and [Actions] INI guide
+│   ├── keycodes.md                     # Symbolic key table (KPKEY_*) to evdev and ASCII
+│   └── cli.md                          # Command-line options reference (-d, -kb, -fw)
+│
+├── development/                        # Developer & Contributor Guides
+│   ├── build-and-test.md               # CMake presets, compiler warnings, CTest execution
+│   ├── contributing.md                 # TDD workflow (/tdd), SOLID rules, Object Calisthenics
+│   └── deployment-and-packaging.md     # Kindle OTA packages, kindletool, install scripts
+│
+├── adr/                                # Architecture Decision Records (ADRs)
+│   ├── README.md                       # ADR registry, status definitions, and index
+│   ├── 0001-modern-cpp20-refactoring.md
+│   ├── 0002-zero-exception-error-handling.md
+│   ├── 0003-hardware-abstraction-layer-for-host-testing.md
+│   ├── 0004-object-calisthenics-composition.md
+│   ├── 0005-host-mocks-and-native-tests.md
+│   └── 0006-backward-compatible-ini-actions.md
+│
+└── sot/                                # Source of Truth (SoT) Specifications
+    ├── README.md                       # SoT directory index and normative precedence
+    ├── coding-standards.md             # Normative engineering standards (TDD, SOLID, C++20)
+    ├── hardware-profile.md             # Normative device capabilities and device node matrix
+    └── config-schema.md                # Normative INI configuration schema
 ```
 
 ---
 
-## Core Engineering Rules
+## 🚀 Quick Navigation
 
-All code contributions, refactoring, and feature additions must strictly adhere to the following core engineering standards:
+### 1. New to the Project?
+- Start with **[Getting Started](getting-started.md)** to configure, build, and test Kindle Launchpad on your local development machine in under 2 minutes.
+- Learn how to build and execute automated tests in **[Building & Testing Guide](development/build-and-test.md)**.
 
-### 1. Test-Driven Development (TDD) & `/tdd`
-- **Red-Green-Refactor**: Write a failing unit or integration test before implementing any feature or bug fix.
-- **Workflow**: Invoke `/tdd` when starting code changes.
-- **Testability**: Separate pure business and parsing logic (such as INI parsing, keycode mapping, command tokenization) from low-level Linux hardware I/O (`/dev/input/*`, `/dev/fb0`) to enable host-based test runs.
+### 2. Understanding System Architecture
+- Read the **[Architectural Overview](architecture/overview.md)** for a high-level view of how components interact.
+- Explore the **[Hardware Abstraction Layer (HAL)](architecture/hal.md)** to see how Launchpad isolates hardware ioctls from business logic.
+- Learn about the hotkey state machine in **[Domain Subsystem](architecture/domain.md)**.
+- Read how non-destructive e-ink overlays work in **[UI Subsystem](architecture/ui.md)**.
 
-### 2. SOLID Principles
-- **Single Responsibility (SRP)**: Each function and C module must perform one task with a single reason to change.
-- **Open/Closed (OCP)**: Extend functionality via tables, strategy function pointers, and configurations without modifying existing core loops.
-- **Liskov Substitution (LSP)**: Input drivers, display handlers, and abstraction layers must preserve contract behaviors.
-- **Interface Segregation (ISP)**: Keep header files (`.h`) focused and minimal. Keep private module functions static.
-- **Dependency Inversion (DIP)**: Depend on abstractions rather than hardcoded hardware devices. Parameterize device paths and file descriptors.
+### 3. Hardware & Low-Level Interfaces
+- Review device profiles: **[Kindle Keyboard (K3)](hardware/kindle-k3.md)**, **[Kindle DX](hardware/kindle-dx.md)**, or **[Kindle 2](hardware/kindle-k2.md)**.
+- Understand the 4bpp packed grayscale display buffer in **[E-Ink Framebuffer Guide](hardware/eink-framebuffer.md)**.
+- Review kernel ioctls and safety rules in **[Kindle Kernel IOCTL Reference](hardware/kindle-ioctls.md)**.
 
-### 3. Object Calisthenics
-1. **One indent level per function**: Extract nested blocks into named helper functions.
-2. **No `else`**: Use guard clauses, early returns, or lookup tables.
-3. **Wrap domain primitives**: Wrap raw scalars in dedicated typedef structs.
-4. **First-class collections**: Encapsulate lists and tables in dedicated structs with focused operations.
-5. **One dot/arrow per line**: Avoid deep chaining (`a->b->c`).
-6. **No abbreviations**: Use descriptive identifiers (avoid `buf`, `tmp`, `fn`, `pact`).
-7. **Keep entities small**: Functions ≤ 15 lines, entities ≤ 100 lines, modules < 200 lines.
-8. **≤ 2 instance variables per entity**: Decompose structs into focused sub-structures.
-9. **Tell, don't ask**: Expose behaviors through functions rather than leaking struct internals.
-
----
-
-## Build Presets & Test Execution
-
-Kindle Launchpad uses CMake presets for building and testing:
-
-```bash
-# 1. Host debug build and full test suite execution
-cmake --preset host-debug
-cmake --build --preset host-debug
-ctest --preset host-test
-
-# 2. Kindle ARMv6 release cross-compilation
-cmake --preset kindle-k3-release
-cmake --build --preset kindle-k3-release
-
-# 3. Packaging staging
-cmake --build --preset kindle-k3-release --target package-stage
-```
-
----
-
-## Detailed Standards
-
-For the complete specification and guidelines, see:
-* **[Coding Standards & Engineering Practices](sot/coding-standards.md)** (`docs/sot/coding-standards.md`)
-* **[C++20 Refactoring Architecture Plan](plans/hidden-honking-zephyr.md)** (`docs/plans/hidden-honking-zephyr.md`)
-
+### 4. Contributing & Standards
+- Read the **[Contributing Guidelines](development/contributing.md)** for TDD rules, SOLID principles, and Object Calisthenics constraints.
+- Consult the authoritative **[Source of Truth: Coding Standards](sot/coding-standards.md)**.
+- Review past design decisions in the **[Architecture Decision Records](adr/README.md)**.
