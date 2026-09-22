@@ -111,45 +111,87 @@ G H = "http://github.com"
 
 ## 🏗️ Building from Source
 
-### Native Host Build
+Kindle Launchpad features a modern **C++20 architecture** using **CMake** with standardized build presets, full test coverage with host test doubles, and cross-compilation toolchain integration with `kindle-sdk`.
+
+### CMake Presets (Recommended)
+
+| Preset Name | Target Platform | Build Type | Purpose |
+| :--- | :--- | :--- | :--- |
+| `host-debug` | Linux Desktop (x86_64) | Debug | Development and running automated test suites |
+| `host-release` | Linux Desktop (x86_64) | Release | Optimized desktop executable and tests |
+| `kindle-k3-release` | Kindle K2/DX/K3 (ARMv6) | Release | Stripped ARMv6 cross-compilation for device deployment |
+| `host-test` | Linux Desktop (x86_64) | Debug | Automated CTest execution for all unit/integration tests |
+
+#### 1. Host Build & Automated Tests
 ```bash
-make clean
-make
+# Configure and build debug version with tests
+cmake --preset host-debug
+cmake --build --preset host-debug
+
+# Run the complete test suite (unit and integration tests)
+ctest --preset host-test
+
+# Or run the test binary directly for detailed output:
+./build/host-debug/unit_tests
 ```
 
-### Kindle ARMv6 Cross-Compilation
+#### 2. Kindle ARMv6 Cross-Compilation
 ```bash
-# Uses arm-linux-gnueabi-gcc toolchain
-make clean
+# Requires arm-linux-gnueabi-g++ (configured in cmake/Toolchain-Kindle-ARMv6.cmake)
+cmake --preset kindle-k3-release
+cmake --build --preset kindle-k3-release
+```
+The resulting optimized binary is generated at `build/kindle-k3-release/launchpad`.
+
+#### 3. Staging and OTA Packaging
+```bash
+# Stage binary and configuration files
+cmake --build --preset kindle-k3-release --target package-stage
+
+# Generate signed OTA update packages (requires kindletool in PATH)
+cmake --build --preset kindle-k3-release --target package-ota
+```
+
+### Legacy Makefile Build (Alternative)
+The original legacy Makefile is preserved for backwards compatibility:
+```bash
+# Native host build
+make all
+
+# Kindle ARMv6 cross-compilation
 make kindle
 ```
-This produces an optimized ARMv6 binary (`binarm/launchpad`) stripped and ready for deployment on Kindle 2, DX, and Keyboard 3 devices.
 
 ---
 
-## 📁 Repository Structure
+## 🏛️ Architecture & Directory Structure
 
 ```
 kindle-launchpad/
-├── CHANGELOG.md              # Complete version history and changelog
-├── LICENSE                   # GNU General Public License v2 (GPL-2.0)
-├── README.md                 # Project documentation and guide
-├── makefile                  # Build script supporting native and ARM cross-compiles
-├── src/                      # C source code (main, launchpad, inifile, screen, etc.)
-├── include/                  # Header files (fnt12x22, einkfb, keydefs, etc.)
-├── scripts/                  # Default helper scripts (SHIFT-*.sh)
-├── customupdate.sh           # Script executed by Shift Shift I
-├── launchpad.ini              # Main runtime configuration
-├── keydefs.ini.default       # Key mapping definition template
-├── servicecmds.ini           # System maintenance hotkey definitions
-├── fbreader.ini              # Reader hotkey definitions
-├── rce.ini                   # Remote Command Entry configuration
-├── packages/                 # Version 0.0.1d OTA installer .bin packages for K2/DX/K3
-├── packaging/                # Original update packager tool and scripts
+├── CMakeLists.txt                      # Root modern CMake build configuration
+├── CMakePresets.json                   # Standardized build & test presets
+├── cmake/
+│   ├── CompilerWarnings.cmake          # Strict warnings (-Wall, -Wextra, -Wpedantic, etc.)
+│   ├── KindlePackaging.cmake           # Staging and kindletool OTA package generation
+│   └── Toolchain-Kindle-ARMv6.cmake    # ARMv6 toolchain wrapping kindle-sdk
+├── include/launchpad/                  # Public C++20 modular interfaces
+│   ├── core/                           # Result<T, Error>, Milliseconds, ScopedFileDescriptor
+│   ├── config/                         # Typesafe INI parser & multi-INI directory scanner
+│   ├── domain/                         # Key definitions, action registry, hotkey sequence matcher
+│   ├── hal/                            # Hardware abstraction layer (IInputSource, IDisplay, ICommandRunner)
+│   ├── ui/                             # E-ink status bar, 12x22 font renderer, screenshot BMP writer
+│   └── system/                         # CLI options, signal handler, PID lock, daemon, RCE server
+├── src/                                # Concrete C++20 implementations
+├── tests/
+│   ├── unit/                           # Pure unit tests (core, config, domain, system, UI)
+│   ├── mocks/                          # MockInputSource, MockDisplay, MockCommandRunner
+│   └── integration/                    # End-to-end hotkey application workflows
+├── packages/                           # Version 0.0.1d OTA installer .bin packages for K2/DX/K3
+├── packaging/                          # OTA update installer scripts and packaging tools
 │   ├── packager/kindle_update_tool.py
 │   └── src/install.sh, uninstall.sh, build-updates.sh
-├── archives/                 # Pristine upstream releases (.zip and .tar.gz)
-└── contrib/                  # Popular community plugins (rotate, prevent_ss, record, sendtoreader)
+├── contrib/                            # Community hotkey plugins (rotate, prevent_ss, record)
+└── docs/                               # Architecture docs, coding standards, and plans
 ```
 
 ---

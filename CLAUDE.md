@@ -8,9 +8,42 @@ Kindle Launchpad is a lightweight C daemon and hotkey launcher for Amazon Kindle
 
 ## Build & Development Commands
 
-### Building
+### Building with CMake (Recommended)
 
-The Makefile uses target names for specific build configurations. Note that GNU Make defaults to creating the output directory if no target is passed, so always specify the target explicitly (e.g. `make all`).
+Kindle Launchpad uses a modern C++20 build system managed by CMake and standardized presets in `CMakePresets.json`:
+
+- **Host Debug Build & Tests**:
+  ```bash
+  cmake --preset host-debug
+  cmake --build --preset host-debug
+  ctest --preset host-test
+  # Or run tests directly: ./build/host-debug/unit_tests
+  ```
+
+- **Host Release Build**:
+  ```bash
+  cmake --preset host-release
+  cmake --build --preset host-release
+  ```
+
+- **Kindle ARMv6 Cross-Compilation (Release)**:
+  ```bash
+  # Uses arm-linux-gnueabi-g++ via cmake/Toolchain-Kindle-ARMv6.cmake
+  cmake --preset kindle-k3-release
+  cmake --build --preset kindle-k3-release
+  ```
+  Produces stripped ARMv6 binary at `./build/kindle-k3-release/launchpad`.
+
+- **Staging & Packaging**:
+  ```bash
+  # Stage binary and configuration files into staging/src/launchpad/
+  cmake --build --preset kindle-k3-release --target package-stage
+
+  # Build Kindle OTA update packages (requires kindletool in PATH)
+  cmake --build --preset kindle-k3-release --target package-ota
+  ```
+
+### Building with Legacy Makefile (Alternative)
 
 - **Native Host Build (Release)**:
   ```bash
@@ -31,17 +64,10 @@ The Makefile uses target names for specific build configurations. Note that GNU 
   ```
   Produces stripped ARMv6 binary at `./binarm/launchpad` using `arm-linux-gnueabi-gcc`.
 
-- **Kindle ARM Cross-Compilation (Debug)**:
-  ```bash
-  make BUILD_SPEC=armDebug CROSS_COMPILE=arm-linux-gnueabi- all
-  ```
-  Produces debug ARM binary at `./armdebug/launchpad`.
-
 - **Clean Build Artifacts**:
   ```bash
   make clean
   ```
-  Removes `bin/`, `binarm/`, `bindebug/`, and `armdebug/`.
 
 ### Running & Debugging
 
@@ -62,34 +88,37 @@ The Makefile uses target names for specific build configurations. Note that GNU 
 
 ## Architecture & Code Structure
 
-### 1. Daemon Lifecycle & Input Polling (`src/main.c`)
-- **Initialization**: Determines runtime path via `/proc/self/exe`, parses flags (`-d`, `-kb`, `-fw`), and forks a background daemon unless `-d` is passed.
-- **Signal Handling**: Catches `SIGINT`, `SIGTERM`, and `SIGHUP`. `SIGHUP` triggers full configuration reinitialization (`reinit`).
-- **Device Polling**: Opens keyboard (`/dev/input/event0`), five-way controller (`/dev/input/event1`), and volume keys (`/dev/input/event2` on K3). Uses `poll()` to multiplex input events.
-- **Input Grabbing**: When the hotkey sequence starts (Introducer key pressed), calls `ioctl(fd, EVIOCGRAB, 1)` to exclusively lock input events from the Kindle OS. If the sequence finishes or times out (`HotInterval`), releases grab via `ioctl(fd, EVIOCGRAB, 0)`.
+Kindle Launchpad is structured as a modular C++20 application adhering to SOLID principles and Object Calisthenics:
 
-### 2. Hotkey Dispatcher & Configuration (`src/launchpad.c`, `src/inifile.c`)
-- **Config Aggregation**: On startup or reload (`Shift Shift Space`), scans the executable's directory for all `*.ini` files (`launchpad.ini`, `servicecmds.ini`, `fbreader.ini`, etc.) and registers key sequence bindings into an action table.
-- **Action Execution (`execute_action`)**:
-  - `!<command>`: Executes a system shell command via `system()`.
-  - `@<script>`: Runs a Kindle Framework script from `scripts/` (matches hotkeys package format).
-  - `#<keys>`: Emulates Kindle Framework search-bar keystrokes.
-  - Quoted string / raw tokens: Injects simulated keypress events into the Linux input subsystem.
-  - Internal Triple-Shift: Calls `do_screenshot()` directly.
+### 1. Application Lifecycle & Composition Root (`src/main.cpp`, `launchpad/system/application.hpp`)
+- **Initialization**: Determines runtime path via `/proc/self/exe`, parses flags (`-d`, `-kb`, `-fw`), and runs as daemon unless `-d` is passed.
+- **Dependency Injection**: Instantiates concrete HAL services (`EvdevInputSource`, `KindleDisplay`, `LinuxCommandRunner`, `LinuxKeyInjector`) and injects them into `Application`.
+- **Signal Handling**: Async-signal-safe flag management for `SIGINT`, `SIGTERM`, and `SIGHUP` (dynamic configuration reload).
+- **PID Locking**: `PidLock` manages `/var/run/launchpad.pid` using RAII and non-blocking `flock(LOCK_EX | LOCK_NB)`.
 
-### 3. E-Ink Framebuffer & Status Bar (`src/screen.c`, `src/statusbar.c`)
-- Directly opens `/dev/fb0`.
-- Renders an overlay status bar in the bottom corner using an embedded 12x22 bitmap font (`include/fnt12x22.h`) to show action progress (`^[...]`), `Success!`, or `Failure.`.
-- Flashes updates using Kindle-specific e-ink ioctl calls (`FBIO_EINK_UPDATE_DISPLAY`).
+### 2. Configuration & Hotkey Dispatcher (`launchpad/config/`, `launchpad/domain/`)
+- **Config Aggregation (`config::ConfigScanner`)**: Scans directory for all `*.ini` files (`launchpad.ini`, `servicecmds.ini`, `fbreader.ini`, etc.) and registers bindings into `domain::ActionRegistry`.
+- **Hotkey State Machine (`domain::SequenceMatcher`)**: Tracks sequence transitions across Introducer (`Shift`), key codes, `HotInterval` timeouts, and Trailer (`Enter`).
+- **Action Execution (`domain::ActionExecutor`)**:
+  - `!<command>`: Executes system shell command via `ICommandRunner`.
+  - `@<script>`: Runs Kindle Framework script from `scripts/`.
+  - `#<keys>`: Emulates Kindle Framework search-bar keystrokes via `IKeyInjector`.
+  - Quoted string / raw tokens: Injects simulated keypress events via `IKeyInjector`.
+  - Internal Triple-Shift: Calls `ScreenshotAction` directly.
 
-### 4. Framebuffer Capture (`src/screenshot.c`)
-- Reads raw pixel data from `/dev/fb0` and outputs standard 4bpp/8bpp uncompressed BMP files to `/mnt/us/screenshot.bmp`.
+### 3. Hardware Abstraction Layer (HAL) (`launchpad/hal/`)
+- `IInputSource`: Abstract interface declaring `poll_events()`, `grab()`, and `release()`. Concrete `EvdevInputSource` polls `/dev/input/event*` and controls `ioctl(EVIOCGRAB)`.
+- `IDisplay`: Abstract interface declaring framebuffer dimensions and update rects. Concrete `KindleDisplay` handles `/dev/fb0` mmap and `FBIO_EINK_UPDATE_DISPLAY` ioctls.
+- `ICommandRunner`: Interface for executing system commands (`LinuxCommandRunner` vs `MockCommandRunner`).
+- `IKeyInjector`: Interface for injecting simulated keystrokes (`LinuxKeyInjector` writes to `/proc/keypad` and `/proc/fiveway`).
 
-### 5. Remote Command Entry (`src/rce.c`)
-- Optional listener running in a dedicated `pthread` that binds a multicast UDP socket to accept remote trigger messages over WiFi or usbnet.
+### 4. E-Ink Framebuffer & Status Bar (`launchpad/ui/`)
+- `ui::FontRenderer`: Renders 12x22 bitmap glyphs into 4bpp/8bpp pixel buffers.
+- `ui::StatusBar`: Renders bottom-corner feedback (`^[...]`, `Success!`, `Failure.`) with background save and restore.
+- `ui::ScreenshotWriter`: Exports framebuffer to uncompressed BMP format.
 
-### 6. Hardware Key Mapping (`src/keydefs.c`, `src/asciitab.c`)
-- Maps Linux kernel input event codes to symbolic key names (`KPKEY_*`) and translates ASCII characters into Kindle key injection event sequences.
+### 5. Remote Command Entry (`launchpad/system/rce_server.hpp`)
+- `RceServer`: UDP multicast listener bound to 224.0.0.1:4444 to accept remote trigger messages over WiFi or usbnet.
 
 ## Environment & Toolchain Conventions
 

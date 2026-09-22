@@ -45,7 +45,29 @@ All code contributions, refactoring, and feature additions must strictly adhere 
 
 ---
 
+## Build Presets & Test Execution
+
+Kindle Launchpad uses CMake presets for building and testing:
+
+```bash
+# 1. Host debug build and full test suite execution
+cmake --preset host-debug
+cmake --build --preset host-debug
+ctest --preset host-test
+
+# 2. Kindle ARMv6 release cross-compilation
+cmake --preset kindle-k3-release
+cmake --build --preset kindle-k3-release
+
+# 3. Packaging staging
+cmake --build --preset kindle-k3-release --target package-stage
+```
+
+---
+
 ## Detailed Standards
 
 For the complete specification and guidelines, see:
 * **[Coding Standards & Engineering Practices](sot/coding-standards.md)** (`docs/sot/coding-standards.md`)
+* **[C++20 Refactoring Architecture Plan](plans/hidden-honking-zephyr.md)** (`docs/plans/hidden-honking-zephyr.md`)
+

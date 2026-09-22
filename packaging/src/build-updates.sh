@@ -5,10 +5,21 @@
 
 HACKNAME="launchpad"
 PKGNAME="${HACKNAME}"
-PKGVER="0.0.1c"
+PKGVER="0.0.2"
 
 KINDLE_MODELS="k2 k2i dx dxi dxg k3g k3w k3gb"
 #KINDLE_MODELS="dxg"
+
+# Prepare staging source if not present
+if [ ! -d "../src/${HACKNAME}" ]; then
+    if [ -d "../../build/kindle-k3-release/staging/src/${HACKNAME}" ]; then
+        mkdir -p ../src
+        cp -r "../../build/kindle-k3-release/staging/src/${HACKNAME}" ../src/
+    else
+        echo "Error: Staged ${HACKNAME} directory not found. Run 'cmake --build --preset kindle-k3-release --target package-stage' first."
+        exit 1
+    fi
+fi
 
 # Archive custom directory
 tar --exclude="*.svn" -cvzf ${HACKNAME}.tar.gz ../src/${HACKNAME}
