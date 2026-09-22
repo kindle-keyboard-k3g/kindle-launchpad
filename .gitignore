@@ -17,3 +17,7 @@ launchpad
 .DS_Store
 *.orig
 *.rej
+
+.env
+/tmp/
+
